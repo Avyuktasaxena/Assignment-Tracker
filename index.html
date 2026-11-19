@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exercise Tracking Portal</title>
+  <style>
+    :root {
+      --green: #218739;
+      --green-dark: #17672b;
+      --green-light: #eaf7ed;
+      --ink: #203126;
+      --muted: #627067;
+      --border: #dce7de;
+      --surface: #ffffff;
+      --background: #f4f8f4;
+      --warning: #fff4d6;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--background);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    header {
+      background: linear-gradient(135deg, var(--green-dark), var(--green));
+      color: white;
+      padding: 28px 16px;
+      text-align: center;
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 4vw, 2.4rem); }
+    header p { margin: 0; }
+    .container { width: min(1100px, 92%); margin: 24px auto 40px; }
+    .toolbar, .tabs, .filters, .actions, .inline-form {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    .toolbar { justify-content: space-between; margin-bottom: 18px; }
+    .tabs { margin-bottom: 18px; }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px;
+      cursor: pointer; background: white; color: var(--ink); font-weight: 600;
+    }
+    button:hover { filter: brightness(.97); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid #9bd5a7; outline-offset: 2px;
+    }
+    .tab-button.active, .primary {
+      background: var(--green); color: white; border-color: var(--green);
+    }
+    .danger { color: #a32222; }
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px; margin-bottom: 22px;
+    }
+    .summary-card, .panel, .exercise-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px; box-shadow: 0 3px 12px #183b2010;
+    }
+    .summary-card span { color: var(--muted); font-size: .92rem; }
+    .summary-card strong { display: block; font-size: 1.8rem; margin-top: 4px; color: var(--green-dark); }
+    .panel { margin-bottom: 20px; }
+    h2 { margin: 0 0 14px; font-size: 1.35rem; }
+    h3 { margin: 0 0 8px; }
+    .filters { margin-bottom: 14px; }
+    .filter-button.active { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+    .exercise-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .exercise-card h3 { color: var(--green-dark); }
+    .badge {
+      display: inline-block; border-radius: 999px; padding: 4px 9px;
+      font-size: .8rem; font-weight: 700; background: #edf0ee; margin-bottom: 8px;
+    }
+    .badge.done { background: #dff4e4; color: #17672b; }
+    .badge.pending { background: var(--warning); color: #765400; }
+    .muted { color: var(--muted); }
+    .progress-track { height: 10px; background: #e8eee9; border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width .2s; }
+    label { display: block; font-weight: 600; margin: 10px 0 5px; }
+    input, select, textarea {
+      width: 100%; border: 1px solid #cbd8cd; border-radius: 8px;
+      padding: 10px; background: white; color: var(--ink);
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .record {
+      border-bottom: 1px solid var(--border); padding: 12px 0;
+    }
+    .record:last-child { border-bottom: 0; }
+    .record p { margin: 4px 0; }
+    .notice { background: var(--green-light); border-left: 4px solid var(--green); padding: 12px; border-radius: 8px; }
+    .hidden { display: none ; }
+    .empty { padding: 20px; text-align: center; color: var(--muted); background: #fafcfb; border-radius: 10px; }
+    footer { text-align: center; color: var(--muted); font-size: .9rem; padding: 20px; }
+    @media (max-width: 720px) {
+      .summary-grid, .exercise-list, .form-grid { grid-template-columns: 1fr; }
+      .toolbar { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌳 Exercise Tracking Portal</h1>
+    <p>Record exercise plans, daily completion, notes and progress.</p>
+  </header>
+
+  <main class="container">
+    <div class="toolbar">
+      <div>
+        <strong id="todayLabel"></strong>
+        <div class="muted">Small steps, steady progress.</div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="showAddFormBtn">＋ Add Exercise</button>
+        <button id="reminderBtn">🔔 Set Reminder</button>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Portal views">
+      <button class="tab-button active" data-view="patientView">My Exercises</button>
+      <button class="tab-button" data-view="historyView">Progress History</button>
+      <button class="tab-button" data-view="adminView">Therapist / Admin</button>
+      <button class="tab-button" data-view="reportsView">Reports</button>
+    </nav>
+
+    <section class="summary-grid" aria-label="Exercise summary">
+      <div class="summary-card"><span>Assigned Exercises</span><strong id="assignedCount">0</strong></div>
+      <div class="summary-card"><span>Completed Today</span><strong id="completedCount">0</strong></div>
+      <div class="summary-card"><span>Today's Completion</span><strong id="completionPercent">0%</strong></div>
+    </section>
+
+    <section id="patientView" class="view">
+      <div class="panel">
+        <h2>Today's Plan</h2>
+        <div class="filters" aria-label="Filter exercises">
+          <button class="filter-button active" data-filter="all">All Assigned</button>
+          <button class="filter-button" data-filter="pending">Pending</button>
+          <button class="filter-button" data-filter="done">Completed</button>
+        </div>
+        <div id="exerciseList" class="exercise-list"></div>
+      </div>
+
+      <section id="addExercisePanel" class="panel hidden">
+        <h2>Add an Exercise Plan</h2>
+        <form id="exerciseForm">
+          <div class="form-grid">
+            <div>
+              <label for="exerciseName">Exercise name *</label>
+              <input id="exerciseName" required placeholder="e.g. Gentle stretching">
+            </div>
+            <div>
+              <label for="exerciseSchedule">Schedule *</label>
+              <select id="exerciseSchedule" required>
+                <option value="Daily">Daily</option>
+                <option value="Weekdays">Weekdays</option>
+                <option value="Weekends">Weekends</option>
+              </select>
+            </div>
+            <div>
+              <label for="exerciseTarget">Target *</label>
+              <input id="exerciseTarget" required placeholder="e.g. 2 sets of 8">
+            </div>
+            <div>
+              <label for="exerciseTime">Reminder time (optional)</label>
+              <input id="exerciseTime" type="time">
+            </div>
+            <div class="full">
+              <label for="exerciseInstructions">Instructions *</label>
+              <textarea id="exerciseInstructions" required placeholder="Enter the instructions provided by your therapist"></textarea>
+            </div>
+            <div class="full">
+              <label for="exerciseNotes">Notes (optional)</label>
+              <textarea id="exerciseNotes" placeholder="Add any helpful notes"></textarea>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="primary" type="submit">Save Exercise</button>
+            <button type="button" id="cancelAddBtn">Cancel</button>
+          </div>
+        </form>
+      </section>
+    </section>
+
+    <section id="historyView" class="view hidden">
+      <div class="panel">
+        <h2>Progress History</h2>
+        <p class="muted">Completion records are saved by date in this browser.</p>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <section id="adminView" class="view hidden">
+      <div class="panel">
+        <h2>Therapist / Admin View</h2>
+        <div id="adminList"></div>
+      </div>
+    </section>
+
+    <section id="reportsView" class="view hidden">
+      <div class="panel">
+        <h2>Progress Report</h2>
+        <div id="reportSummary"></div>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="downloadReportBtn">Download Report (.txt)</button>
+          <button id="printReportBtn">Print Report</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Today's Notes</h2>
+      <label for="dailyNotes">General notes</label>
+      <textarea id="dailyNotes" placeholder="How did today's exercises go?"></textarea>
+      <div class="actions" style="margin-top:10px">
+        <button class="primary" id="saveDailyNotesBtn">Save Notes</button>
+        <span id="notesStatus" class="muted" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <footer>Follow your therapist's instructions and stop if an exercise causes concerning pain.</footer>
+  </main>
+
+  <script>
+    
+    const starterExercises = [
+      {
+        id: "shoulder-rolls",
+        name: "Shoulder Rolls",
+        instructions: "Sit upright and roll your shoulders gently as demonstrated by your therapist.",
+        target: "2 sets of 8",
+        schedule: "Daily",
+        reminderTime: "",
+        notes: ""
+      },
+      {
+        id: "heel-raises",
+        name: "Supported Heel Raises",
+        instructions: "Hold a stable support and follow your therapist's instructions.",
+        target: "2 sets of 8",
+        schedule: "Weekdays",
+        reminderTime: "",
+        notes: ""
+      }
+    ];
+
+    const STORAGE_KEY = "exerciseTrackingPortal_v1";
+    const today = getLocalDateKey(new Date());
+    let state = loadState();
+    let currentFilter = "all";
+
+    function getLocalDateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.exercises) && parsed.completions) return parsed;
+        }
+      } catch (error) {
+        console.warn("Could not read saved portal data.", error);
+      }
+      return { exercises: starterExercises, completions: {}, dailyNotes: {}, exerciseNotes: {} };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function isCompleted(exerciseId, date = today) {
+      return Boolean(state.completions[date] && state.completions[date][exerciseId]);
+    }
+
+    function isScheduledToday(exercise) {
+      const day = new Date().getDay(); // Sunday = 0, Saturday = 6
+      if (exercise.schedule === "Weekdays") return day >= 1 && day <= 5;
+      if (exercise.schedule === "Weekends") return day === 0 || day === 6;
+      return true;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+    }
+
+    function render() {
+      document.getElementById("todayLabel").textContent =
+        new Date().toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+      const scheduled = state.exercises.filter(isScheduledToday);
+      const completed = scheduled.filter(exercise => isCompleted(exercise.id)).length;
+      const percent = scheduled.length ? Math.round(completed / scheduled.length * 100) : 0;
+      document.getElementById("assignedCount").textContent = scheduled.length;
+      document.getElementById("completedCount").textContent = completed;
+      document.getElementById("completionPercent").textContent = `${percent}%`;
+
+      renderExercises();
+      renderHistory();
+      renderAdmin();
+      renderReport();
+      document.getElementById("dailyNotes").value = state.dailyNotes[today] || "";
+    }
+
+    function renderExercises() {
+      const list = document.getElementById("exerciseList");
+      const exercises = state.exercises.filter(exercise => {
+        if (currentFilter === "pending") return !isCompleted(exercise.id);
+        if (currentFilter === "done") return isCompleted(exercise.id);
+        return true;
+      });
+
+      if (!exercises.length) {
+        list.innerHTML = '<div class="empty" style="grid-column:1/-1">No exercises in this filter.</div>';
+        return;
+      }
+
+      list.innerHTML = exercises.map(exercise => {
+        const done = isCompleted(exercise.id);
+        const note = state.exerciseNotes[exercise.id] ?? exercise.notes ?? "";
+        return `
+          <article class="exercise-card">
+            <span class="badge ${done ? "done" : "pending"}">${done ? "Completed today" : "Pending"}</span>
+            <h3>${escapeHtml(exercise.name)}</h3>
+            <p>${escapeHtml(exercise.instructions)}</p>
+            <p><strong>Target:</strong> ${escapeHtml(exercise.target)}</p>
+            <p><strong>Schedule:</strong> ${escapeHtml(exercise.schedule)}${isScheduledToday(exercise) ? "" : " (not scheduled today)"}</p>
+            ${exercise.reminderTime ? `<p><strong>Reminder:</strong> ${escapeHtml(exercise.reminderTime)}</p>` : ""}
+            <label for="note-${escapeHtml(exercise.id)}">Exercise notes</label>
+            <textarea id="note-${escapeHtml(exercise.id)}" data-note-id="${escapeHtml(exercise.id)}" placeholder="Add a note for this exercise">${escapeHtml(note)}</textarea>
+            <div class="actions" style="margin-top:10px">
+              <button class="primary" data-toggle-id="${escapeHtml(exercise.id)}">${done ? "Mark Pending" : "Mark Completed"}</button>
+              <button class="danger" data-delete-id="${escapeHtml(exercise.id)}">Delete</button>
+            </div>
+          </article>`;
+      }).join("");
+
+      list.querySelectorAll("[data-toggle-id]").forEach(button => {
+        button.addEventListener("click", () => toggleCompletion(button.dataset.toggleId));
+      });
+      list.querySelectorAll("[data-delete-id]").forEach(button => {
+        button.addEventListener("click", () => deleteExercise(button.dataset.deleteId));
+      });
+      list.querySelectorAll("[data-note-id]").forEach(textarea => {
+        textarea.addEventListener("change", () => {
+          state.exerciseNotes[textarea.dataset.noteId] = textarea.value;
+          saveState();
+          renderHistory();
+          renderAdmin();
+        });
+      });
+    }
+
+    function toggleCompletion(exerciseId) {
+      if (!state.completions[today]) state.completions[today] = {};
+      if (state.completions[today][exerciseId]) {
+        delete state.completions[today][exerciseId];
+      } else {
+        state.completions[today][exerciseId] = new Date().toISOString();
+      }
+      saveState();
+      render();
+    }
+
+    function deleteExercise(exerciseId) {
+      const exercise = state.exercises.find(item => item.id === exerciseId);
+      if (!exercise || !confirm(`Delete "${exercise.name}" and its plan?`)) return;
+      state.exercises = state.exercises.filter(item => item.id !== exerciseId);
+      saveState();
+      render();
+    }
+
+    function renderHistory() {
+      const historyList = document.getElementById("historyList");
+      const dates = Object.keys(state.completions).sort((a, b) => b.localeCompare(a));
+      if (!dates.length) {
+        historyList.innerHTML = '<div class="empty">No completion history yet. Mark an exercise completed to start your history.</div>';
+        return;
+      }
+      historyList.innerHTML = dates.map(date => {
+        const completedIds = Object.keys(state.completions[date] || {}).filter(id => state.completions[date][id]);
+        const names = completedIds.map(id => state.exercises.find(ex => ex.id === id)?.name || "Deleted exercise");
+        return `<div class="record"><strong>${escapeHtml(date)}</strong>
+          <p>${names.length ? names.map(escapeHtml).join(", ") : "No completed exercises"}</p>
+          <span class="muted">${names.length} completion(s)</span></div>`;
+      }).join("");
+    }
+
+    function renderAdmin() {
+      const adminList = document.getElementById("adminList");
+      if (!state.exercises.length) {
+        adminList.innerHTML = '<div class="empty">No exercise plans have been added.</div>';
+        return;
+      }
+      adminList.innerHTML = state.exercises.map(exercise => {
+        const done = isCompleted(exercise.id);
+        return `<div class="record">
+          <strong>${escapeHtml(exercise.name)}</strong> — <span class="badge ${done ? "done" : "pending"}">${done ? "Completed today" : "Pending today"}</span>
+          <p><strong>Target:</strong> ${escapeHtml(exercise.target)} · <strong>Schedule:</strong> ${escapeHtml(exercise.schedule)}</p>
+          <p><strong>Instructions:</strong> ${escapeHtml(exercise.instructions)}</p>
+          <p><strong>Notes:</strong> ${escapeHtml(state.exerciseNotes[exercise.id] ?? exercise.notes ?? "No notes")}</p>
+        </div>`;
+      }).join("");
+    }
+
+    function getReportText() {
+      const scheduled = state.exercises.filter(isScheduledToday);
+      const completed = scheduled.filter(exercise => isCompleted(exercise.id));
+      const percent = scheduled.length ? Math.round(completed.length / scheduled.length * 100) : 0;
+      const historyDays = Object.keys(state.completions).sort();
+      const lines = [
+        "EXERCISE TRACKING PORTAL — PROGRESS REPORT",
+        `Report date: ${today}`,
+        `Exercises scheduled today: ${scheduled.length}`,
+        `Completed today: ${completed.length}`,
+        `Today's completion rate: ${percent}%`,
+        "",
+        "Today's exercise status:",
+        ...scheduled.map(exercise => `- ${exercise.name}: ${isCompleted(exercise.id) ? "Completed" : "Pending"} (${exercise.target})`),
+        "",
+        `Dates with recorded activity: ${historyDays.length}`,
+        `Today's notes: ${state.dailyNotes[today] || "No general notes"}`
+      ];
+      return lines.join("\n");
+    }
+
+    function renderReport() {
+      const scheduled = state.exercises.filter(isScheduledToday);
+      const completed = scheduled.filter(exercise => isCompleted(exercise.id)).length;
+      const percent = scheduled.length ? Math.round(completed / scheduled.length * 100) : 0;
+      document.getElementById("reportSummary").innerHTML = `
+        <p><strong>Report date:</strong> ${escapeHtml(today)}</p>
+        <p><strong>Exercises scheduled today:</strong> ${scheduled.length}</p>
+        <p><strong>Completed:</strong> ${completed} of ${scheduled.length}</p>
+        <div class="progress-track" aria-label="Today's completion rate"><div class="progress-fill" style="width:${percent}%"></div></div>
+        <p><strong>${percent}%</strong> of today's scheduled exercises completed.</p>
+        <p><strong>Days with saved activity:</strong> ${Object.keys(state.completions).length}</p>`;
+    }
+
+    document.querySelectorAll(".tab-button").forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".tab-button").forEach(tab => tab.classList.toggle("active", tab === button));
+        document.querySelectorAll(".view").forEach(view => view.classList.toggle("hidden", view.id !== button.dataset.view));
+      });
+    });
+
+    document.querySelectorAll(".filter-button").forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter;
+        document.querySelectorAll(".filter-button").forEach(tab => tab.classList.toggle("active", tab === button));
+        renderExercises();
+      });
+    });
+
+    document.getElementById("showAddFormBtn").addEventListener("click", () => {
+      document.getElementById("addExercisePanel").classList.toggle("hidden");
+    });
+    document.getElementById("cancelAddBtn").addEventListener("click", () => {
+      document.getElementById("addExercisePanel").classList.add("hidden");
+      document.getElementById("exerciseForm").reset();
+    });
+
+    document.getElementById("exerciseForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const name = document.getElementById("exerciseName").value.trim();
+      if (!name) return;
+      const exercise = {
+        id: `exercise-${Date.now()}`,
+        name,
+        schedule: document.getElementById("exerciseSchedule").value,
+        target: document.getElementById("exerciseTarget").value.trim(),
+        reminderTime: document.getElementById("exerciseTime").value,
+        instructions: document.getElementById("exerciseInstructions").value.trim(),
+        notes: document.getElementById("exerciseNotes").value.trim()
+      };
+      state.exercises.push(exercise);
+      if (exercise.notes) state.exerciseNotes[exercise.id] = exercise.notes;
+      saveState();
+      event.target.reset();
+      document.getElementById("addExercisePanel").classList.add("hidden");
+      render();
+    });
+
+    document.getElementById("saveDailyNotesBtn").addEventListener("click", () => {
+      state.dailyNotes[today] = document.getElementById("dailyNotes").value;
+      saveState();
+      document.getElementById("notesStatus").textContent = "Notes saved.";
+      setTimeout(() => document.getElementById("notesStatus").textContent = "", 2500);
+    });
+
+    document.getElementById("reminderBtn").addEventListener("click", () => {
+      const times = state.exercises.filter(exercise => exercise.reminderTime && isScheduledToday(exercise));
+      if (!times.length) {
+        alert("No reminder times set yet. Add an exercise and choose a reminder time.");
+        document.getElementById("addExercisePanel").classList.remove("hidden");
+        return;
+      }
+      alert("Reminder times saved in this portal:\\n" + times.map(exercise => `${exercise.name}: ${exercise.reminderTime}`).join("\\n") +
+        "\\n\\nNote: this demo does not send automatic notifications when the page is closed.");
+    });
+
+    document.getElementById("downloadReportBtn").addEventListener("click", () => {
+      const blob = new Blob([getReportText()], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `exercise-report-${today}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("printReportBtn").addEventListener("click", () => window.print());
+
+    render();
+  </script>
+</body>
+</html>
+
